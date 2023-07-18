@@ -27,7 +27,14 @@
 
   var instance;
 
-  beforeEach(function() {
+  before(function() {
+    const defaultClient = TalonOne.ApiClient.instance
+    defaultClient.basePath = "http://localhost:9000"
+
+    const api_key_v1 = defaultClient.authentications["api_key_v1"]
+    api_key_v1.apiKey = process.env.IAPI_KEY
+    api_key_v1.apiKeyPrefix = "ApiKey-v1"
+
     instance = new TalonOne.IntegrationApi();
   });
 
@@ -129,23 +136,37 @@
       });
     });
     describe('getCustomerInventory', function() {
-      it('should call getCustomerInventory successfully', function(done) {
+      it('should call getCustomerInventory successfully', async function() {
         //uncomment below and update the code to test getCustomerInventory
-        //instance.getCustomerInventory(function(error) {
-        //  if (error) throw error;
-        //expect().to.be();
-        //});
-        done();
+
+        const inventory = await instance.getCustomerInventory('example_prof_id', {
+          profile: true,
+        })
+        console.log(
+          "API called successfully. Returned data:\n" + JSON.stringify(inventory, null, 2)
+        )
+        expect(inventory).to.not.be(null)
+        expect(inventory).to.not.be(undefined)
+        expect(inventory.profile).to.not.be(undefined)
+        expect(inventory.profile.id).to.be(10)
+        // expect(inventory.profile.attributes).to.eql({
+        //   Name: "wauw"
+        // })
+        
       });
     });
     describe('getCustomerSession', function() {
-      it('should call getCustomerSession successfully', function(done) {
+      it('should call getCustomerSession successfully', async function() {
         //uncomment below and update the code to test getCustomerSession
-        //instance.getCustomerSession(function(error) {
-        //  if (error) throw error;
-        //expect().to.be();
-        //});
-        done();
+        const sess = await instance.getCustomerSession('my_unique_session_integration_id_3')
+        console.log(
+          "API called successfully. Returned data:\n" + JSON.stringify(sess, null, 2)
+        )
+        expect(sess).to.not.be(null)
+        expect(sess).to.not.be(undefined)
+        expect(sess.customerSession.integrationId).to.be('my_unique_session_integration_id_3')
+        expect(sess.customerSession.state).to.be('closed')
+        expect(sess.effects).length(1)
       });
     });
     describe('getLoyaltyBalances', function() {
@@ -179,13 +200,19 @@
       });
     });
     describe('getLoyaltyProgramProfileTransactions', function() {
-      it('should call getLoyaltyProgramProfileTransactions successfully', function(done) {
-        //uncomment below and update the code to test getLoyaltyProgramProfileTransactions
-        //instance.getLoyaltyProgramProfileTransactions(function(error) {
-        //  if (error) throw error;
-        //expect().to.be();
-        //});
-        done();
+      it('should call getLoyaltyProgramProfileTransactions successfully', async function() {
+        try {
+          const transactions = await instance.getLoyaltyProgramProfileTransactions(43, 'testing_hashmaps')
+          console.log(
+            "API called successfully. Returned data:\n" + JSON.stringify(transactions, null, 2)
+          )
+          expect(transactions.hasMore).to.be(false)
+          expect(transactions.data).length(1)
+          expect(transactions.data[0].type).to.be('addition')
+          expect(transactions.data[0].amount).to.be(10)
+        } catch (error) {
+          console.error(error)
+        }
       });
     });
     describe('getReservedCustomers', function() {
@@ -209,13 +236,16 @@
       });
     });
     describe('reopenCustomerSession', function() {
-      it('should call reopenCustomerSession successfully', function(done) {
-        //uncomment below and update the code to test reopenCustomerSession
-        //instance.reopenCustomerSession(function(error) {
-        //  if (error) throw error;
-        //expect().to.be();
-        //});
-        done();
+      it('should call reopenCustomerSession successfully', async function() {
+        try {
+          const reSess = await instance.reopenCustomerSession('example_prof_id_js_v500')
+          console.log(
+            "API called successfully. Returned data:\n" + JSON.stringify(reSess, null, 2)
+          )
+          expect().to.be();
+        } catch(error) {
+          console.error(error)
+        }
       });
     });
     describe('returnCartItems', function() {
@@ -299,13 +329,73 @@
       });
     });
     describe('updateCustomerSessionV2', function() {
-      it('should call updateCustomerSessionV2 successfully', function(done) {
-        //uncomment below and update the code to test updateCustomerSessionV2
-        //instance.updateCustomerSessionV2(function(error) {
-        //  if (error) throw error;
-        //expect().to.be();
-        //});
-        done();
+      it('should call updateCustomerSessionV2 successfully', async function() {
+        const integrationApi = new TalonOne.IntegrationApi();
+
+        // Initializing a customer session object
+        const customerSession = TalonOne.NewCustomerSessionV2.constructFromObject({
+          profileId: 'test',
+          cartItems: [
+            {
+              name: 'Döner King',
+              sku: 'kd-100',
+              quantity: 1,
+              price: 2.00,
+              category: 'pizzas'
+            },
+            {
+              name: 'Spezi 500ml',
+              sku: 'sp-50',
+              quantity: 1,
+              price: 2,
+              category: 'beverages'
+            },
+            {
+              name: 'Queen Döner',
+              sku: 'qd-100',
+              quantity: 1,
+              price: 2.50,
+              category: 'pizzas'
+            },
+            {
+              name: 'Club Mate 330ml',
+              sku: 'cm-33',
+              quantity: 1,
+              price: 1.80,
+              category: 'beverages'
+            }
+          ],
+          couponCodes: [
+            'Cool-Summer!'
+          ],
+          state: 'closed',
+        });
+
+        //Initializing an integration request wrapping the customer session
+        const integrationRequest = new TalonOne.IntegrationRequest(customerSession);
+
+        const data = await integrationApi.updateCustomerSessionV2("example_prof_id_js_v500", integrationRequest)
+
+        console.log(JSON.stringify(data, null, 2));
+
+        // Parsing the returned effects list, please consult https://developers.talon.one/Integration-API/handling-effects-v2 for the full list of effects and their corresponding properties
+        data.effects.forEach(effect => {
+          switch(effect.effectType) {
+            case 'setDiscount':
+              // Initiating right props instance according to the effect type
+              const setDiscountProps = TalonOne.SetDiscountEffectProps.constructFromObject(effect.props)
+              // Initiating the right props class is not a necessity, it is only a suggestion here that could help in case of unexpected returned values from the API
+
+              // Access the specific effect's properties
+              console.log(`Set a discount '${setDiscountProps.name}' of ${setDiscountProps.value}`)
+              break
+            case 'acceptCoupon':
+              // Work with AcceptCouponEffectProps' properties
+              // ...
+            default:
+              // throw new Error(`Unhandled effect type from Talon.One integration: ${effect.effectType}`)
+          }
+        })
       });
     });
   });

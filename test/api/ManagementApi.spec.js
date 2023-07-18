@@ -27,8 +27,19 @@
 
   var instance;
 
-  beforeEach(function() {
+  before(async function() {
+    const defaultClient = TalonOne.ApiClient.instance
+    defaultClient.basePath = "http://localhost:9000"
+
+    const management_key = defaultClient.authentications["management_key"]
+    management_key.apiKey = process.env.MAPI_KEY
+    management_key.apiKeyPrefix = "ManagementKey-v1"
+
     instance = new TalonOne.ManagementApi();
+  });
+
+  after(async function() {
+    instance.destroySession()
   });
 
   var getProperty = function(object, getter, property) {
@@ -489,13 +500,18 @@
       });
     });
     describe('getApplication', function() {
-      it('should call getApplication successfully', function(done) {
+      it('should call getApplication successfully', async function() {
         //uncomment below and update the code to test getApplication
-        //instance.getApplication(function(error) {
-        //  if (error) throw error;
-        //expect().to.be();
-        //});
-        done();
+        try {
+          const app = await instance.getApplication(1)
+          expect(app.id).to.be(1)
+          console.log(
+            "API called successfully. Returned data:\n" + JSON.stringify(app, null, 2)
+          )
+        } catch (err) {
+          console.error("Error while fetching the application:\n" + JSON.stringify(err, null, 2))
+          throw err
+        }
       });
     });
     describe('getApplicationApiHealth', function() {
